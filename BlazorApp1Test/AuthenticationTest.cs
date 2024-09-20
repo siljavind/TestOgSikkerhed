@@ -31,8 +31,8 @@ public class AuthenticationTest
         var element = cut.Find("p");
 
         //Assert
-        element.MarkupMatches("<p>You are not logged in.</p>");
-        Assert.Equal("You are not logged in.", element.InnerHtml);
+        element.MarkupMatches("<p>You are not logged in.</p>"); // Same as Assert.Equal
+        Assert.Equal("You are not logged in.", element.InnerHtml); // Same as MarkupMatches
     }
 
     [Fact]
@@ -49,8 +49,8 @@ public class AuthenticationTest
         var element = cut.Find("p");
 
         //Assert
-        element.MarkupMatches($"<p>Hello, {username}!</p>");
-        Assert.Equal($"Hello, {username}!", element.InnerHtml);
+        element.MarkupMatches($"<p>Hello, {username}!</p>"); // Same as Assert.Equal
+        Assert.Equal($"Hello, {username}!", element.InnerHtml); // Same as MarkupMatches
     }
 
     [Fact]
