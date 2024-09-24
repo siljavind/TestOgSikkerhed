@@ -1,6 +1,9 @@
+using BlazorApp1.Code;
 using BlazorApp1.Components;
 using BlazorApp1.Components.Account;
 using BlazorApp1.Data;
+using BlazorApp1.Data.DbContexts;
+using BlazorApp1.Data.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -18,6 +21,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+builder.Services.AddSingleton<HashingHandler>();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -26,23 +30,23 @@ builder.Services.AddAuthentication(options =>
     })
     .AddIdentityCookies();
 
-string connectionString;
+//if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+//{
+//    //connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+//    builder.Services.AddDbContext<ToDoDbContext>(options =>
+//       options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoConnection")));
 
-if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-{
-    //connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-    builder.Services.AddDbContext<IdentityDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+//    builder.Services.AddDbContext<IdentityDbContext>(options =>
+//        options.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection")));
+//}
+//else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+//{
+builder.Services.AddDbContext<ToDoDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("MockToDoConnection")));
 
-    builder.Services.AddDbContext<ToDoDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoConnection")));
-}
-else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-{
-    connectionString = builder.Configuration.GetConnectionString("MockConnection") ?? throw new InvalidOperationException("Connection string 'MockConnection' not found.");
-    builder.Services.AddDbContext<IdentityDbContext>(options =>
-        options.UseSqlite(connectionString));
-}
+builder.Services.AddDbContext<IdentityDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("MockIdentityConnection")));
+//}
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
@@ -52,7 +56,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+//builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 builder.Services.AddAuthorization(options =>
 {
@@ -74,22 +78,22 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredLength = 8;
 });
 
-builder.WebHost.UseKestrel((context, serverOptions) =>
-{
-    var kestrelSection = context.Configuration.GetSection("Kestrel");
+//builder.WebHost.UseKestrel((context, serverOptions) =>
+//{
+//    var kestrelSection = context.Configuration.GetSection("Kestrel");
 
-    serverOptions.Configure(kestrelSection)
-    .Endpoint("HTTPS", listenOptions =>
-    {
-        listenOptions.HttpsOptions.SslProtocols = SslProtocols.Tls12;
-    });
+//    serverOptions.Configure(kestrelSection)
+//    .Endpoint("HTTPS", listenOptions =>
+//    {
+//        listenOptions.HttpsOptions.SslProtocols = SslProtocols.Tls12;
+//    });
 
-    var userFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".aspnet", "https", "svjCertificate.pfx");
-    var kestrelPassword = context.Configuration.GetValue<string>("KestrelPassword");
+//    var userFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".aspnet", "https", "svjCertificate.pfx");
+//    var kestrelPassword = context.Configuration.GetValue<string>("KestrelPassword");
 
-    kestrelSection.GetSection("Endpoints:Https:Certificate:Path").Value = userFolder;
-    kestrelSection.GetSection("Endpoints:Https:Certificate:Password").Value = kestrelPassword;
-});
+//    kestrelSection.GetSection("Endpoints:Https:Certificate:Path").Value = userFolder;
+//    kestrelSection.GetSection("Endpoints:Https:Certificate:Password").Value = kestrelPassword;
+//});
 
 var app = builder.Build();
 

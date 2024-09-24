@@ -1,10 +1,12 @@
 ﻿@page "/"
+@using BlazorApp1.Code
 @using BlazorApp1.Data
 
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @inject IServiceProvider ServiceProvider
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HashingHandler HashingHandler
 @* @inject UserManager<ApplicationUser> _userManager *@
 <PageTitle>Home</PageTitle>
 
@@ -45,6 +47,9 @@ else
         var authUser = authState.User;
         isAuthenticated = authUser.Identity.IsAuthenticated;
         isAdmin = authUser.IsInRole("Admin");
+
+        var res = HashingHandler.MD5Hashing("123456");
+        //TODO Use same method to check if values match when checking CPR
 
         //await CreateUserRolesAsync("silja.vj@gmail.com", "Admin");
     }
