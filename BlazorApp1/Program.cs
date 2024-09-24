@@ -1,10 +1,12 @@
 using BlazorApp1.Components;
 using BlazorApp1.Components.Account;
 using BlazorApp1.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Runtime.InteropServices;
+using System.Security.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,14 +30,17 @@ string connectionString;
 
 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 {
-    connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(connectionString));
+    //connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+    builder.Services.AddDbContext<IdentityDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+    builder.Services.AddDbContext<ToDoDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoConnection")));
 }
 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 {
     connectionString = builder.Configuration.GetConnectionString("MockConnection") ?? throw new InvalidOperationException("Connection string 'MockConnection' not found.");
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    builder.Services.AddDbContext<IdentityDbContext>(options =>
         options.UseSqlite(connectionString));
 }
 
@@ -43,7 +48,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddEntityFrameworkStores<IdentityDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
@@ -59,11 +64,31 @@ builder.Services.AddAuthorization(options =>
     {
         policy.RequireRole("Admin");
     });
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 builder.Services.Configure<IdentityOptions>(options =>
 {
     options.Password.RequiredLength = 8;
+});
+
+builder.WebHost.UseKestrel((context, serverOptions) =>
+{
+    var kestrelSection = context.Configuration.GetSection("Kestrel");
+
+    serverOptions.Configure(kestrelSection)
+    .Endpoint("HTTPS", listenOptions =>
+    {
+        listenOptions.HttpsOptions.SslProtocols = SslProtocols.Tls12;
+    });
+
+    var userFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".aspnet", "https", "svjCertificate.pfx");
+    var kestrelPassword = context.Configuration.GetValue<string>("KestrelPassword");
+
+    kestrelSection.GetSection("Endpoints:Https:Certificate:Path").Value = userFolder;
+    kestrelSection.GetSection("Endpoints:Https:Certificate:Password").Value = kestrelPassword;
 });
 
 var app = builder.Build();
