@@ -16,8 +16,7 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
-@attribute [AllowAnonymous]
-@layout EmptyLayout
+@* @attribute [AllowAnonymous] *@
 
 <PageTitle>Register</PageTitle>
 <div class="row justify-content-center">
@@ -25,8 +24,6 @@
         <StatusMessage Message="@Message" />
         <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
             <DataAnnotationsValidator />
-            <h2>Create a new account.</h2>
-            <hr />
             <ValidationSummary class="text-danger" role="alert" />
             <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
@@ -46,13 +43,6 @@
             <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
         </EditForm>
     </div>
-    @* <div class="col-md-6 col-md-offset-2">
-    <section>
-    <h3>Use another service to register.</h3>
-    <hr />
-    <ExternalLoginPicker />
-    </section>
-    </div> *@
 </div>
 
 @code {

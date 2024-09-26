@@ -1,20 +1,25 @@
 ﻿@page "/"
 @using BlazorApp1.Code
+@using BlazorApp1.Components.Layout
 @using BlazorApp1.Data
 
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @inject IServiceProvider ServiceProvider
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> _userManager
 @inject HashingHandler HashingHandler
-@* @inject UserManager<ApplicationUser> _userManager *@
+@* @inject SymmetricEncryptionHandler SymmetricEncryptionHandler *@
+@inject AsymmetricEncryptionHandler AsymmetricEncryptionHandler
+
+
 <PageTitle>Home</PageTitle>
 
 <AuthorizeView>
     <Authorized>
         <p>Hello, @context.User.Identity?.Name!</p>
     </Authorized>
-    <NotAuthorized><p>You are not logged in.</p></NotAuthorized>
+    <NotAuthorized><p>You are not logged in</p></NotAuthorized>
 </AuthorizeView>
 
 <AuthorizeView Roles="Admin">
@@ -22,20 +27,6 @@
         <p>You are an admin.</p>
     </Authorized>
 </AuthorizeView>
-
-
-@* @if (_isAuthenticated)
-{
-    <p>You are logged in.</p>
-    @if (_isAdmin)
-    {
-        <p>You are an admin.</p>
-    }
-}
-else
-{
-    <p>You are not logged in.</p>
-} *@
 
 @code {
     public bool isAuthenticated;
@@ -48,24 +39,31 @@ else
         isAuthenticated = authUser.Identity.IsAuthenticated;
         isAdmin = authUser.IsInRole("Admin");
 
-        var res = HashingHandler.MD5Hashing("123456");
+        //var res = HashingHandler.MD5Hashing("123456");
+
+        //var encryptedText = await AsymmetricEncryptionHandler.AsymmetricEncrypt("test");
+        //var decryptedText = await AsymmetricEncryptionHandler.AsymmetricDecrypt(encryptedText);
+
+        // var encryptedText = SymmetricEncryptionHandler.Protect("test");
+        // var decryptedText = SymmetricEncryptionHandler.Unprotect(encryptedText);
+
         //TODO Use same method to check if values match when checking CPR
 
         //await CreateUserRolesAsync("silja.vj@gmail.com", "Admin");
     }
 
-    // public async Task CreateUserRolesAsync(string user, string role)
-    // {
-    //     var roleManager = ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    public async Task CreateUserRolesAsync(string user, string role)
+    {
+        var roleManager = ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    //     var roleRoleExists = await roleManager.RoleExistsAsync(role);
-    //     if (!roleRoleExists)
-    //         await roleManager.CreateAsync(new IdentityRole(role));
+        var roleRoleExists = await roleManager.RoleExistsAsync(role);
+        if (!roleRoleExists)
+            await roleManager.CreateAsync(new IdentityRole(role));
 
-    //     Data.ApplicationUser identityUser = await _userManager.FindByEmailAsync(user);
-    //     var userRoles = await _userManager.GetRolesAsync(identityUser);
+        Data.ApplicationUser identityUser = await _userManager.FindByEmailAsync(user);
+        var userRoles = await _userManager.GetRolesAsync(identityUser);
 
-    //     if (!userRoles.Contains(role))
-    //         await _userManager.AddToRoleAsync(identityUser, role);
-    // }
+        if (!userRoles.Contains(role))
+            await _userManager.AddToRoleAsync(identityUser, role);
+    }
 }

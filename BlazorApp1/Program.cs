@@ -22,6 +22,8 @@ builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 builder.Services.AddSingleton<HashingHandler>();
+//builder.Services.AddSingleton<SymmetricEncryptionHandler>();
+builder.Services.AddSingleton<AsymmetricEncryptionHandler>();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -30,33 +32,32 @@ builder.Services.AddAuthentication(options =>
     })
     .AddIdentityCookies();
 
-//if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-//{
-//    //connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-//    builder.Services.AddDbContext<ToDoDbContext>(options =>
-//       options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoConnection")));
+if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+{
+    builder.Services.AddDbContext<ToDoDbContext>(options =>
+       options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoConnection")));
 
-//    builder.Services.AddDbContext<IdentityDbContext>(options =>
-//        options.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection")));
-//}
-//else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-//{
-builder.Services.AddDbContext<ToDoDbContext>(options =>
+    builder.Services.AddDbContext<IdentityDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection")));
+}
+else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+{
+    builder.Services.AddDbContext<ToDoDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("MockToDoConnection")));
 
-builder.Services.AddDbContext<IdentityDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("MockIdentityConnection")));
-//}
+    builder.Services.AddDbContext<IdentityDbContext>(options =>
+        options.UseSqlite(builder.Configuration.GetConnectionString("MockIdentityConnection")));
+}
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+builder.Services.AddIdentityCore<ApplicationUser>() //options => options.SignIn.RequireConfirmedAccount = true
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<IdentityDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-//builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 builder.Services.AddAuthorization(options =>
 {
@@ -68,9 +69,14 @@ builder.Services.AddAuthorization(options =>
     {
         policy.RequireRole("Admin");
     });
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
+    options.AddPolicy("ValidCPRPolicy", policy =>
+    {
+        policy.Requirements.Add()
+    })
+    //TODO Reinstate 
+    //options.FallbackPolicy = new AuthorizationPolicyBuilder()
+    //    .RequireAuthenticatedUser()
+    //    .Build();
 });
 
 builder.Services.Configure<IdentityOptions>(options =>
@@ -78,22 +84,25 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredLength = 8;
 });
 
-//builder.WebHost.UseKestrel((context, serverOptions) =>
-//{
-//    var kestrelSection = context.Configuration.GetSection("Kestrel");
+builder.WebHost.UseKestrel((context, serverOptions) =>
+{
+    var kestrelSection = context.Configuration.GetSection("Kestrel");
 
-//    serverOptions.Configure(kestrelSection)
-//    .Endpoint("HTTPS", listenOptions =>
-//    {
-//        listenOptions.HttpsOptions.SslProtocols = SslProtocols.Tls12;
-//    });
+    serverOptions.Configure(kestrelSection)
+    .Endpoint("HTTPS", listenOptions =>
+    {
+        listenOptions.HttpsOptions.SslProtocols = SslProtocols.Tls12;
+    });
 
-//    var userFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".aspnet", "https", "svjCertificate.pfx");
-//    var kestrelPassword = context.Configuration.GetValue<string>("KestrelPassword");
+    var userFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".aspnet", "https", "svjCertificate.pfx");
+    var kestrelPassword = context.Configuration.GetValue<string>("KestrelPassword");
 
-//    kestrelSection.GetSection("Endpoints:Https:Certificate:Path").Value = userFolder;
-//    kestrelSection.GetSection("Endpoints:Https:Certificate:Password").Value = kestrelPassword;
-//});
+    kestrelSection.GetSection("Endpoints:Https:Certificate:Path").Value = userFolder;
+    kestrelSection.GetSection("Endpoints:Https:Certificate:Password").Value = kestrelPassword;
+});
+
+builder.Services.AddDataProtection();
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
