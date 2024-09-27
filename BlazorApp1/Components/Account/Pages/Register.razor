@@ -16,9 +16,12 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
-@* @attribute [AllowAnonymous] *@
+@attribute [AllowAnonymous]
 
 <PageTitle>Register</PageTitle>
+
+<RedirectToHome />
+
 <div class="row justify-content-center">
     <div class="col-md-4">
         <StatusMessage Message="@Message" />

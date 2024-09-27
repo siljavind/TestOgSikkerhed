@@ -1,0 +1,16 @@
+﻿@page "/auth-redirect"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IdentityRedirectManager RedirectManager
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            RedirectManager.RedirectTo("/");
+        }
+    }
+}

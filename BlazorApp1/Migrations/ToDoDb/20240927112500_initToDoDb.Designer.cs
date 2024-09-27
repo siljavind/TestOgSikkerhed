@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlazorApp1.Migrations.ToDoDb
 {
     [DbContext(typeof(ToDoDbContext))]
-    [Migration("20240926134049_initToDoDb")]
+    [Migration("20240927112500_initToDoDb")]
     partial class initToDoDb
     {
         /// <inheritdoc />

@@ -1,69 +1,175 @@
 ﻿@page "/"
 @using BlazorApp1.Code
+@using BlazorApp1.Components.Account
+@using BlazorApp1.Components.Account.Shared
 @using BlazorApp1.Components.Layout
 @using BlazorApp1.Data
-
+@using BlazorApp1.Data.DbContexts
+@using BlazorApp1.Data.Models
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+
 @inject IServiceProvider ServiceProvider
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUser> _userManager
 @inject HashingHandler HashingHandler
 @* @inject SymmetricEncryptionHandler SymmetricEncryptionHandler *@
 @inject AsymmetricEncryptionHandler AsymmetricEncryptionHandler
-
+@inject ToDoDbContext ToDoDbContext
+@inject IdentityRedirectManager RedirectManager
 
 <PageTitle>Home</PageTitle>
 
-<AuthorizeView>
-    <Authorized>
-        <p>Hello, @context.User.Identity?.Name!</p>
-    </Authorized>
-    <NotAuthorized><p>You are not logged in</p></NotAuthorized>
-</AuthorizeView>
-
-<AuthorizeView Roles="Admin">
-    <Authorized>
-        <p>You are an admin.</p>
-    </Authorized>
-</AuthorizeView>
+@if (!isCPRValid)
+{
+    <AuthorizeView>
+        <Authorized Context="authContext">
+            <div class="row justify-content-center">
+                <div class="col-md-4">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">@errorMessage</div>
+                    }
+                    <EditForm Model="Input" method="post" OnValidSubmit="HandleCPRSubmit" FormName="cpr">
+                        <DataAnnotationsValidator />
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="Input.CPRNumber" class="form-control" aria-required="true" placeholder="0000000000" />
+                            <label for="cpr" class="form-label">CPR</label>
+                            <ValidationMessage For="() => Input.CPRNumber" class="text-danger" />
+                        </div>
+                        <div>
+                            <button type="submit" class="w-100 btn btn-lg btn-primary">Submit</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+}
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+            <EditForm Model="ToDoInput" method="post" OnValidSubmit="HandleToDoSubmit" FormName="todo">
+                <DataAnnotationsValidator />
+                <div class="form-floating mb-3">
+                    <InputText @bind-Value="ToDoInput.ToDoItem" class="form-control" aria-required="true" placeholder="Enter your to-do item" />
+                    <label for="todo" class="form-label">To-Do Item</label>
+                    <ValidationMessage For="() => ToDoInput.ToDoItem" class="text-danger" />
+                </div>
+                <div>
+                    <button type="submit" class="w-100 btn btn-lg btn-primary">Add To-Do</button>
+                </div>
+            </EditForm>
+            <ul class="list-group mt-3">
+                @foreach (var item in toDoItems)
+                {
+                    <li class="list-group-item">@item.Item</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
 
 @code {
-    public bool isAuthenticated;
-    public bool isAdmin;
+    private string? errorMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromForm]
+    private ToDoInputModel ToDoInput { get; set; } = new();
+
+    private bool isCPRValid = false;
+    public CPR? userWithCPR;
+    private List<ToDoList> toDoItems { get; set; } = new();
+
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var authUser = authState.User;
-        isAuthenticated = authUser.Identity.IsAuthenticated;
-        isAdmin = authUser.IsInRole("Admin");
-
-        //var res = HashingHandler.MD5Hashing("123456");
-
-        //var encryptedText = await AsymmetricEncryptionHandler.AsymmetricEncrypt("test");
-        //var decryptedText = await AsymmetricEncryptionHandler.AsymmetricDecrypt(encryptedText);
-
-        // var encryptedText = SymmetricEncryptionHandler.Protect("test");
-        // var decryptedText = SymmetricEncryptionHandler.Unprotect(encryptedText);
-
-        //TODO Use same method to check if values match when checking CPR
-
-        //await CreateUserRolesAsync("silja.vj@gmail.com", "Admin");
+        var user = authState.User;
     }
 
-    public async Task CreateUserRolesAsync(string user, string role)
+    private async Task HandleCPRSubmit()
     {
-        var roleManager = ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var authUser = authState.User;
 
-        var roleRoleExists = await roleManager.RoleExistsAsync(role);
-        if (!roleRoleExists)
-            await roleManager.CreateAsync(new IdentityRole(role));
+        userWithCPR = await ToDoDbContext.CPR.FirstOrDefaultAsync(c => c.User == authUser.Identity.Name);
 
-        Data.ApplicationUser identityUser = await _userManager.FindByEmailAsync(user);
-        var userRoles = await _userManager.GetRolesAsync(identityUser);
+        if (userWithCPR == null)
+        {
+            var hashedCPR = HashingHandler.BCryptHashing(Input.CPRNumber);
 
-        if (!userRoles.Contains(role))
-            await _userManager.AddToRoleAsync(identityUser, role);
+            await ToDoDbContext.AddAsync(new CPR { User = authUser.Identity.Name, CprNr = hashedCPR });
+            await ToDoDbContext.SaveChangesAsync();
+            userWithCPR = await ToDoDbContext.CPR.FirstOrDefaultAsync(c => c.User == authUser.Identity.Name);
+            isCPRValid = true;
+        }
+        else if (!HashingHandler.BCryptVerify(Input.CPRNumber, userWithCPR.CprNr))
+        {
+            errorMessage = "Incorrect CPR";
+        }
+        else
+        {
+            errorMessage = null;
+            isCPRValid = true;
+        }
+
+        var encryptedToDoItems = await ToDoDbContext.ToDoList.Where(t => t.UserId == userWithCPR.Id).ToListAsync();
+
+        foreach (var item in encryptedToDoItems)
+        {
+            var decryptedItem = await AsymmetricEncryptionHandler.Decrypt(item.Item);
+            toDoItems.Add(new ToDoList { Id = item.Id, UserId = item.UserId, Item = decryptedItem });
+        }
+        StateHasChanged();
+    }
+
+    private async Task HandleToDoSubmit()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        var newToDo = new ToDoList { UserId = userWithCPR.Id, Item = ToDoInput.ToDoItem };
+
+        try
+        {
+            var encryptedToDo = await AsymmetricEncryptionHandler.Encrypt(newToDo.Item);
+            newToDo.Item = encryptedToDo;
+
+            await ToDoDbContext.ToDoList.AddAsync(newToDo);
+            await ToDoDbContext.SaveChangesAsync();
+
+            var decryptedItem = await AsymmetricEncryptionHandler.Decrypt(newToDo.Item);
+            newToDo.Item = decryptedItem;
+
+            toDoItems.Add(newToDo);
+        }
+        catch (Exception e)
+        {
+            errorMessage = $"Operation failed: {e.Message}";
+            return;
+        }
+
+        ToDoInput.ToDoItem = string.Empty;
+        StateHasChanged();
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "CPR must be exactly 10 digits.")]
+        public string CPRNumber { get; set; }
+    }
+
+    private sealed class ToDoInputModel
+    {
+        [Required]
+        public string ToDoItem { get; set; }
     }
 }

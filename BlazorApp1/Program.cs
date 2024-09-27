@@ -4,6 +4,7 @@ using BlazorApp1.Components.Account;
 using BlazorApp1.Data;
 using BlazorApp1.Data.DbContexts;
 using BlazorApp1.Data.Models;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -25,6 +26,7 @@ builder.Services.AddSingleton<HashingHandler>();
 //builder.Services.AddSingleton<SymmetricEncryptionHandler>();
 builder.Services.AddSingleton<AsymmetricEncryptionHandler>();
 
+
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -32,26 +34,16 @@ builder.Services.AddAuthentication(options =>
     })
     .AddIdentityCookies();
 
-if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-{
-    builder.Services.AddDbContext<ToDoDbContext>(options =>
-       options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoConnection")));
+builder.Services.AddDbContext<ToDoDbContext>(options =>
+   options.UseSqlServer(builder.Configuration.GetConnectionString("ToDoConnection")));
 
-    builder.Services.AddDbContext<IdentityDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection")));
-}
-else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-{
-    builder.Services.AddDbContext<ToDoDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("MockToDoConnection")));
+builder.Services.AddDbContext<IdentityDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("IdentityConnection")));
 
-    builder.Services.AddDbContext<IdentityDbContext>(options =>
-        options.UseSqlite(builder.Configuration.GetConnectionString("MockIdentityConnection")));
-}
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentityCore<ApplicationUser>() //options => options.SignIn.RequireConfirmedAccount = true
+builder.Services.AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<IdentityDbContext>()
     .AddSignInManager()
@@ -62,21 +54,13 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AuthenticatedUser", policy =>
-    {
-        policy.RequireAuthenticatedUser();
-    });
+        policy.RequireAuthenticatedUser());
+
     options.AddPolicy("RequireAdministratorRole", policy =>
-    {
-        policy.RequireRole("Admin");
-    });
-    options.AddPolicy("ValidCPRPolicy", policy =>
-    {
-        policy.Requirements.Add()
-    })
-    //TODO Reinstate 
-    //options.FallbackPolicy = new AuthorizationPolicyBuilder()
-    //    .RequireAuthenticatedUser()
-    //    .Build();
+        policy.RequireRole("Admin"));
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
 });
 
 builder.Services.Configure<IdentityOptions>(options =>
